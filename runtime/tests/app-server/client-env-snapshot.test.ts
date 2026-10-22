@@ -12,9 +12,24 @@ import {
   withheldModelProviderCredentials,
 } from "../../src/app-server/client-env-snapshot.js";
 import { isSecretEnvKey } from "../../src/utils/secretEnv.js";
-import { lightStatesTaskLimits } from "../../src/tools/light-profile.js";
+import { lightEditsWithApplyPatch, lightStatesTaskLimits } from "../../src/tools/light-profile.js";
 
 describe("daemon client environment snapshots", () => {
+  it.each(["1", "0"])("forwards the local Light editor switch %s", value => {
+    const snapshot = collectDaemonClientEnvOverrides({ AGENC_LIGHT_APPLY_PATCH: value });
+    expect(snapshot.AGENC_LIGHT_APPLY_PATCH).toBe(value);
+    const merged = mergeDaemonClientEnvironment({ AGENC_LIGHT_APPLY_PATCH: "1" }, normalizeDaemonClientEnvOverrides(snapshot));
+    expect(lightEditsWithApplyPatch("openai-compatible", "DeepSeek-v4.1-Flash-EXL3", merged ?? {})).toBe(value === "1");
+  });
+
+  it("clears an omitted local Light editor switch between daemon clients", () => {
+    const snapshot = collectDaemonClientEnvOverrides({});
+    expect(snapshot.AGENC_LIGHT_APPLY_PATCH).toBe("");
+    const merged = mergeDaemonClientEnvironment({ AGENC_LIGHT_APPLY_PATCH: "1" }, snapshot);
+    expect(merged).not.toHaveProperty("AGENC_LIGHT_APPLY_PATCH");
+    expect(lightEditsWithApplyPatch("openai-compatible", undefined, merged ?? {})).toBe(false);
+  });
+
   it.each(["1", "0"])("forwards Light task limits %s into a local model session", value => {
     const snapshot = collectDaemonClientEnvOverrides({ AGENC_LIGHT_TASK_LIMITS: value });
     expect(snapshot.AGENC_LIGHT_TASK_LIMITS).toBe(value);
